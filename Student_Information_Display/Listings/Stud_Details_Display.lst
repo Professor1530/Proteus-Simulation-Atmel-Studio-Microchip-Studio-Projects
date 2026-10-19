@@ -1,0 +1,561 @@
+A51 MACRO ASSEMBLER  STUD_DETAILS_DISPLAY                                                 05/13/2025 13:25:37 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.2.7.0
+OBJECT MODULE PLACED IN .\Objects\Stud_Details_Display.obj
+ASSEMBLER INVOKED BY: C:\Keil_v5\C51\BIN\A51.EXE Stud_Details_Display.asm SET(SMALL) DEBUG PRINT(.\Listings\Stud_Details
+                      _Display.lst) OBJECT(.\Objects\Stud_Details_Display.obj) EP
+
+LOC  OBJ            LINE     SOURCE
+
+0000                   1     ORG 000H
+                       2     
+                       3     ; LCD Control Pins
+  00B0                 4     RS EQU P3.0
+  00B1                 5     EN EQU P3.1
+                       6     
+                       7     ; Keypad Pins
+  00A0                 8     ROW1 EQU P2.0
+  00A1                 9     ROW2 EQU P2.1
+  00A2                10     ROW3 EQU P2.2
+  00A3                11     ROW4 EQU P2.3
+  00A4                12     COL1 EQU P2.4
+  00A5                13     COL2 EQU P2.5
+  00A6                14     COL3 EQU P2.6
+                      15     
+                      16     ; Variables
+  0030                17     LAST_KEY        EQU 30H        
+  0031                18     PRESS_COUNT EQU 31H     
+  0032                19     TIMER           EQU 32H           
+  0033                20     CURSOR_POS      EQU 33H      
+  0000                21     ALPHA_MODE      EQU 20H.0    
+                      22     
+0000                  23     MAIN:
+0000 753100           24         MOV PRESS_COUNT, #0
+0003 7530FF           25         MOV LAST_KEY, #0FFH  ; Initialize to invalid value
+0006 753300           26         MOV CURSOR_POS, #0
+0009 C200             27         CLR ALPHA_MODE       ; Start in number mode
+000B 112B             28         CALL LCD_INIT
+000D 115D             29         CALL CLEAR_LCD
+000F 900206           30         MOV DPTR, #WELCOME_MSG
+0012 1167             31         CALL LCD_DISPLAY_STRING
+                      32     
+0014                  33     LOOP:
+0014 1171             34         CALL KEYPAD_SCAN
+0016 111A             35         CALL CHECK_TIMER     ; This is line 45 - now properly defined below
+0018 80FA             36         JMP LOOP
+                      37     
+                      38     ; ========== TIMER FUNCTION ==========
+001A                  39     CHECK_TIMER:
+001A 0532             40         INC TIMER
+001C E532             41         MOV A, TIMER
+001E B43209           42         CJNE A, #50, TIMER_NOT_EXPIRED  ; Adjust for timeout duration
+                      43         
+                      44         ; Timer expired - reset press count
+0021 753100           45         MOV PRESS_COUNT, #0
+0024 7530FF           46         MOV LAST_KEY, #0FFH
+0027 753200           47         MOV TIMER, #0
+                      48     
+002A                  49     TIMER_NOT_EXPIRED:
+002A 22               50         RET
+                      51     
+                      52     ; ========== LCD FUNCTIONS ========== 
+002B                  53     LCD_INIT:
+002B 7438             54         MOV A, #38H          ; 8-bit, 2-line, 5x7 font
+002D 1138             55         CALL LCD_CMD
+002F 740C             56         MOV A, #0CH          ; Display ON, cursor OFF
+0031 1138             57         CALL LCD_CMD
+A51 MACRO ASSEMBLER  STUD_DETAILS_DISPLAY                                                 05/13/2025 13:25:37 PAGE     2
+
+0033 7406             58         MOV A, #06H          ; Auto-increment cursor
+0035 1138             59         CALL LCD_CMD
+0037 22               60         RET
+                      61     
+0038                  62     LCD_CMD:
+0038 F590             63         MOV P1, A
+003A C2B0             64         CLR RS
+003C D2B1             65         SETB EN
+003E 31F1             66         CALL DELAY_SHORT
+0040 C2B1             67         CLR EN
+0042 31F1             68         CALL DELAY_SHORT
+0044 22               69         RET
+                      70     
+0045                  71     LCD_DATA:
+0045 F590             72         MOV P1, A
+0047 D2B0             73         SETB RS
+0049 D2B1             74         SETB EN
+004B 31F1             75         CALL DELAY_SHORT
+004D C2B1             76         CLR EN
+004F 31F1             77         CALL DELAY_SHORT
+                      78         
+                      79         ; Update cursor position
+0051 0533             80         INC CURSOR_POS
+0053 E533             81         MOV A, CURSOR_POS
+0055 B41004           82         CJNE A, #16, NO_NEWLINE
+0058 74C0             83         MOV A, #0C0H         ; Move to second line
+005A 1138             84         CALL LCD_CMD
+005C                  85     NO_NEWLINE:
+005C 22               86         RET
+                      87     
+005D                  88     CLEAR_LCD:
+005D 7401             89         MOV A, #01H
+005F 1138             90         CALL LCD_CMD
+0061 753300           91         MOV CURSOR_POS, #0
+0064 31FF             92         CALL DELAY_200MS
+0066 22               93         RET
+                      94     
+0067                  95     LCD_DISPLAY_STRING:
+0067 E4               96         CLR A
+0068 93               97         MOVC A, @A+DPTR
+0069 6005             98         JZ STRING_END
+006B 1145             99         CALL LCD_DATA
+006D A3              100         INC DPTR
+006E 80F7            101         SJMP LCD_DISPLAY_STRING
+0070                 102     STRING_END:
+0070 22              103         RET
+                     104     
+                     105     ; ========== KEYPAD FUNCTIONS ==========
+0071                 106     KEYPAD_SCAN:
+                     107         ; Scan Column 1
+0071 C2A4            108         CLR COL1
+0073 D2A5            109         SETB COL2
+0075 D2A6            110         SETB COL3
+0077 1190            111         CALL CHECK_COL1
+0079 D2A4            112         SETB COL1
+                     113         
+                     114         ; Scan Column 2
+007B D2A4            115         SETB COL1
+007D C2A5            116         CLR COL2
+007F D2A6            117         SETB COL3
+0081 11D2            118         CALL CHECK_COL2
+0083 D2A5            119         SETB COL2
+                     120         
+                     121         ; Scan Column 3
+0085 D2A4            122         SETB COL1
+0087 D2A5            123         SETB COL2
+A51 MACRO ASSEMBLER  STUD_DETAILS_DISPLAY                                                 05/13/2025 13:25:37 PAGE     3
+
+0089 C2A6            124         CLR COL3
+008B 310F            125         CALL CHECK_COL3
+008D D2A6            126         SETB COL3
+008F 22              127         RET
+                     128     
+0090                 129     CHECK_COL1:
+0090 20A00C          130         JB ROW1, SKIP_ROW1_C1
+0093 31F6            131         CALL DELAY_20MS
+0095 20A007          132         JB ROW1, SKIP_ROW1_C1
+0098 7401            133         MOV A, #1
+009A 3151            134         CALL PROCESS_KEY
+009C 30A0FD          135         JNB ROW1, $
+009F                 136     SKIP_ROW1_C1:
+                     137     
+009F 20A10C          138         JB ROW2, SKIP_ROW2_C1
+00A2 31F6            139         CALL DELAY_20MS
+00A4 20A107          140         JB ROW2, SKIP_ROW2_C1
+00A7 7404            141         MOV A, #4
+00A9 3151            142         CALL PROCESS_KEY
+00AB 30A1FD          143         JNB ROW2, $
+00AE                 144     SKIP_ROW2_C1:
+                     145     
+00AE 20A20C          146         JB ROW3, SKIP_ROW3_C1
+00B1 31F6            147         CALL DELAY_20MS
+00B3 20A207          148         JB ROW3, SKIP_ROW3_C1
+00B6 7407            149         MOV A, #7
+00B8 3151            150         CALL PROCESS_KEY
+00BA 30A2FD          151         JNB ROW3, $
+00BD                 152     SKIP_ROW3_C1:
+                     153     
+00BD 20A311          154         JB ROW4, SKIP_ROW4_C1
+00C0 31F6            155         CALL DELAY_20MS
+00C2 20A30C          156         JB ROW4, SKIP_ROW4_C1
+                     157         ; '*' key pressed - toggle to alphabet mode
+00C5 D200            158         SETB ALPHA_MODE
+00C7 115D            159         CALL CLEAR_LCD
+00C9 90022B          160         MOV DPTR, #ALPHA_MSG
+00CC 1167            161         CALL LCD_DISPLAY_STRING
+00CE 30A3FD          162         JNB ROW4, $
+00D1                 163     SKIP_ROW4_C1:
+00D1 22              164         RET
+                     165     
+00D2                 166     CHECK_COL2:
+00D2 20A00C          167         JB ROW1, SKIP_ROW1_C2
+00D5 31F6            168         CALL DELAY_20MS
+00D7 20A007          169         JB ROW1, SKIP_ROW1_C2
+00DA 7402            170         MOV A, #2
+00DC 3151            171         CALL PROCESS_KEY
+00DE 30A0FD          172         JNB ROW1, $
+00E1                 173     SKIP_ROW1_C2:
+                     174     
+00E1 20A10C          175         JB ROW2, SKIP_ROW2_C2
+00E4 31F6            176         CALL DELAY_20MS
+00E6 20A107          177         JB ROW2, SKIP_ROW2_C2
+00E9 7405            178         MOV A, #5
+00EB 3151            179         CALL PROCESS_KEY
+00ED 30A1FD          180         JNB ROW2, $
+00F0                 181     SKIP_ROW2_C2:
+                     182     
+00F0 20A20C          183         JB ROW3, SKIP_ROW3_C2
+00F3 31F6            184         CALL DELAY_20MS
+00F5 20A207          185         JB ROW3, SKIP_ROW3_C2
+00F8 7408            186         MOV A, #8
+00FA 3151            187         CALL PROCESS_KEY
+00FC 30A2FD          188         JNB ROW3, $
+00FF                 189     SKIP_ROW3_C2:
+A51 MACRO ASSEMBLER  STUD_DETAILS_DISPLAY                                                 05/13/2025 13:25:37 PAGE     4
+
+                     190     
+00FF 20A30C          191         JB ROW4, SKIP_ROW4_C2
+0102 31F6            192         CALL DELAY_20MS
+0104 20A307          193         JB ROW4, SKIP_ROW4_C2
+0107 7400            194         MOV A, #0
+0109 3151            195         CALL PROCESS_KEY
+010B 30A3FD          196         JNB ROW4, $
+010E                 197     SKIP_ROW4_C2:
+010E 22              198         RET
+                     199     
+010F                 200     CHECK_COL3:
+010F 20A00C          201         JB ROW1, SKIP_ROW1_C3
+0112 31F6            202         CALL DELAY_20MS
+0114 20A007          203         JB ROW1, SKIP_ROW1_C3
+0117 7403            204         MOV A, #3
+0119 3151            205         CALL PROCESS_KEY
+011B 30A0FD          206         JNB ROW1, $
+011E                 207     SKIP_ROW1_C3:
+                     208     
+011E 20A10C          209         JB ROW2, SKIP_ROW2_C3
+0121 31F6            210         CALL DELAY_20MS
+0123 20A107          211         JB ROW2, SKIP_ROW2_C3
+0126 7406            212         MOV A, #6
+0128 3151            213         CALL PROCESS_KEY
+012A 30A1FD          214         JNB ROW2, $
+012D                 215     SKIP_ROW2_C3:
+                     216     
+012D 20A20C          217         JB ROW3, SKIP_ROW3_C3
+0130 31F6            218         CALL DELAY_20MS
+0132 20A207          219         JB ROW3, SKIP_ROW3_C3
+0135 7409            220         MOV A, #9
+0137 3151            221         CALL PROCESS_KEY
+0139 30A2FD          222         JNB ROW3, $
+013C                 223     SKIP_ROW3_C3:
+                     224     
+013C 20A311          225         JB ROW4, SKIP_ROW4_C3
+013F 31F6            226         CALL DELAY_20MS
+0141 20A30C          227         JB ROW4, SKIP_ROW4_C3
+                     228         ; '#' key pressed - return to number mode
+0144 C200            229         CLR ALPHA_MODE
+0146 115D            230         CALL CLEAR_LCD
+0148 90021C          231         MOV DPTR, #NUMBER_MSG
+014B 1167            232         CALL LCD_DISPLAY_STRING
+014D 30A3FD          233         JNB ROW4, $
+0150                 234     SKIP_ROW4_C3:
+0150 22              235         RET
+                     236     
+                     237     ; ========== KEY PROCESSING ==========
+0151                 238     PROCESS_KEY:
+                     239         ; A contains key number (0-9)
+0151 B5301E          240         CJNE A, LAST_KEY, NEW_KEY
+                     241         
+                     242         ; Same key pressed again - only process in alphabet mode
+0154 200008          243         JB ALPHA_MODE, PROCESS_ALPHA_REPEAT
+                     244         
+                     245         ; In number mode, just display the number again
+0157 E530            246         MOV A, LAST_KEY
+0159 2430            247         ADD A, #'0'          ; Convert to ASCII
+015B 1145            248         CALL LCD_DATA
+015D 802C            249         JMP KEY_PROCESS_DONE
+                     250     
+015F                 251     PROCESS_ALPHA_REPEAT:
+                     252         ; Only in alphabet mode - handle multi-tap
+015F 0531            253         INC PRESS_COUNT
+0161 753200          254         MOV TIMER, #0
+                     255         
+A51 MACRO ASSEMBLER  STUD_DETAILS_DISPLAY                                                 05/13/2025 13:25:37 PAGE     5
+
+                     256         ; Delete previous character
+0164 7410            257         MOV A, #10H          ; Backspace command
+0166 1138            258         CALL LCD_CMD
+0168 1533            259         DEC CURSOR_POS
+                     260         
+                     261         ; Get the new character to display
+016A E530            262         MOV A, LAST_KEY
+016C 318C            263         CALL GET_ALPHA_CHAR
+016E 1145            264         CALL LCD_DATA
+0170 8019            265         JMP KEY_PROCESS_DONE
+                     266     
+0172                 267     NEW_KEY:
+                     268         ; Different key pressed
+0172 753101          269         MOV PRESS_COUNT, #1
+0175 F530            270         MOV LAST_KEY, A
+0177 753200          271         MOV TIMER, #0
+                     272         
+                     273         ; Check if we're in alphabet mode
+017A 200008          274         JB ALPHA_MODE, PROCESS_ALPHA_NEW
+                     275         
+                     276         ; Number mode processing - just display the number
+017D E530            277         MOV A, LAST_KEY
+017F 2430            278         ADD A, #'0'          ; Convert to ASCII
+0181 1145            279         CALL LCD_DATA
+0183 8006            280         JMP KEY_PROCESS_DONE
+                     281     
+0185                 282     PROCESS_ALPHA_NEW:
+                     283         ; New key pressed in alphabet mode
+0185 E530            284         MOV A, LAST_KEY
+0187 318C            285         CALL GET_ALPHA_CHAR
+0189 1145            286         CALL LCD_DATA
+                     287     
+018B                 288     KEY_PROCESS_DONE:
+018B 22              289         RET
+                     290     
+                     291     ; ========== ALPHABET CHARACTER SELECTION ==========
+018C                 292     GET_ALPHA_CHAR:
+                     293         ; Input: A = key number (0-9)
+                     294         ; Output: A = character to display
+                     295         
+                     296         ; Key 0 - space in alphabet mode, '0' in number mode
+018C B40003          297         CJNE A, #0, NOT_KEY0_ALPHA
+018F 7420            298         MOV A, #' '          ; Space character
+0191 22              299         RET
+                     300     
+0192                 301     NOT_KEY0_ALPHA:
+                     302         ; Key 1 - not used in alphabet mode
+0192 B40103          303         CJNE A, #1, NOT_KEY1_ALPHA
+0195 7400            304         MOV A, #0            ; Null character (won't be displayed)
+0197 22              305         RET
+                     306     
+0198                 307     NOT_KEY1_ALPHA:
+                     308         ; Key 2 (ABC)
+0198 B40205          309         CJNE A, #2, NOT_KEY2_ALPHA
+019B 90025D          310         MOV DPTR, #KEY2_CHARS
+019E 8033            311         SJMP GET_CHAR_FROM_TABLE
+                     312     
+01A0                 313     NOT_KEY2_ALPHA:
+                     314         ; Key 3 (DEF)
+01A0 B40305          315         CJNE A, #3, NOT_KEY3_ALPHA
+01A3 900260          316         MOV DPTR, #KEY3_CHARS
+01A6 802B            317         SJMP GET_CHAR_FROM_TABLE
+                     318     
+01A8                 319     NOT_KEY3_ALPHA:
+                     320         ; Key 4 (GHI)
+01A8 B40405          321         CJNE A, #4, NOT_KEY4_ALPHA
+A51 MACRO ASSEMBLER  STUD_DETAILS_DISPLAY                                                 05/13/2025 13:25:37 PAGE     6
+
+01AB 900263          322         MOV DPTR, #KEY4_CHARS
+01AE 8023            323         SJMP GET_CHAR_FROM_TABLE
+                     324     
+01B0                 325     NOT_KEY4_ALPHA:
+                     326         ; Key 5 (JKL)
+01B0 B40505          327         CJNE A, #5, NOT_KEY5_ALPHA
+01B3 900266          328         MOV DPTR, #KEY5_CHARS
+01B6 801B            329         SJMP GET_CHAR_FROM_TABLE
+                     330     
+01B8                 331     NOT_KEY5_ALPHA:
+                     332         ; Key 6 (MNO)
+01B8 B40605          333         CJNE A, #6, NOT_KEY6_ALPHA
+01BB 900269          334         MOV DPTR, #KEY6_CHARS
+01BE 8013            335         SJMP GET_CHAR_FROM_TABLE
+                     336     
+01C0                 337     NOT_KEY6_ALPHA:
+                     338         ; Key 7 (PQRS)
+01C0 B40705          339         CJNE A, #7, NOT_KEY7_ALPHA
+01C3 90026C          340         MOV DPTR, #KEY7_CHARS
+01C6 800B            341         SJMP GET_CHAR_FROM_TABLE
+                     342     
+01C8                 343     NOT_KEY7_ALPHA:
+                     344         ; Key 8 (TUV)
+01C8 B40805          345         CJNE A, #8, NOT_KEY8_ALPHA
+01CB 900270          346         MOV DPTR, #KEY8_CHARS
+01CE 8003            347         SJMP GET_CHAR_FROM_TABLE
+                     348     
+01D0                 349     NOT_KEY8_ALPHA:
+                     350         ; Key 9 (WXYZ)
+01D0 900273          351         MOV DPTR, #KEY9_CHARS
+                     352     
+01D3                 353     GET_CHAR_FROM_TABLE:
+                     354         ; Calculate which character to show based on press count
+01D3 E531            355         MOV A, PRESS_COUNT
+01D5 14              356         DEC A                ; Adjust for 0-based index
+                     357         
+                     358         ; Handle wrap-around for each key
+01D6 FF              359         MOV R7, A            ; Save press count
+                     360         
+                     361         ; Get max presses for this key
+01D7 E530            362         MOV A, LAST_KEY
+01D9 B40704          363         CJNE A, #7, CHECK_KEY9
+01DC 7404            364         MOV A, #4            ; Key 7 has 4 letters (PQRS)
+01DE 8009            365         SJMP SET_MAX_PRESSES
+01E0                 366     CHECK_KEY9:
+01E0 B40904          367         CJNE A, #9, DEFAULT_MAX
+01E3 7404            368         MOV A, #4            ; Key 9 has 4 letters (WXYZ)
+01E5 8002            369         SJMP SET_MAX_PRESSES
+01E7                 370     DEFAULT_MAX:
+01E7 7403            371         MOV A, #3            ; Other keys have 3 letters
+01E9                 372     SET_MAX_PRESSES:
+01E9 F5F0            373         MOV B, A
+                     374         
+                     375         ; Wrap the press count if needed
+01EB EF              376         MOV A, R7
+01EC 84              377         DIV AB               ; A = press_count % max_presses
+01ED E5F0            378         MOV A, B             ; Get remainder
+                     379         
+                     380         ; Get the character
+01EF 93              381         MOVC A, @A+DPTR
+01F0 22              382         RET
+                     383     
+                     384     ; ========== DELAY FUNCTIONS ==========
+01F1                 385     DELAY_SHORT:
+01F1 780A            386         MOV R0, #10
+01F3 D8FE            387         DJNZ R0, $
+A51 MACRO ASSEMBLER  STUD_DETAILS_DISPLAY                                                 05/13/2025 13:25:37 PAGE     7
+
+01F5 22              388         RET
+                     389     
+01F6                 390     DELAY_20MS:
+01F6 7928            391         MOV R1, #40
+01F8                 392     DELAY_20MS_LOOP:
+01F8 78FA            393         MOV R0, #250
+01FA D8FE            394         DJNZ R0, $
+01FC D9FA            395         DJNZ R1, DELAY_20MS_LOOP
+01FE 22              396         RET
+                     397     
+01FF                 398     DELAY_200MS:
+01FF 7A32            399         MOV R2, #50
+0201                 400     DELAY_200MS_LOOP:
+0201 31F6            401         CALL DELAY_20MS
+0203 DAFC            402         DJNZ R2, DELAY_200MS_LOOP
+0205 22              403         RET
+                     404     
+                     405     ; ========== STRING DATA ==========
+0206 46696C6C        406     WELCOME_MSG: DB "Fill Stud Details (*)",0
+020A 20537475                
+020E 64204465                
+0212 7461696C                
+0216 7320282A                
+021A 2900                    
+021C 456E7465        407     NUMBER_MSG: DB "Enter Stud No:",0
+0220 72205374                
+0224 7564204E                
+0228 6F3A00                  
+022B 456E7465        408     ALPHA_MSG: DB "Enter Surname:",0
+022F 72205375                
+0233 726E616D                
+0237 653A00                  
+023A 456E7465        409     PROMPT3: DB "Enter Initial:",0
+023E 7220496E                
+0242 69746961                
+0246 6C3A00                  
+0249 456E7465        410     PROMPT4: DB "Enter Subject Code:",0
+024D 72205375                
+0251 626A6563                
+0255 7420436F                
+0259 64653A00                
+                     411                     
+                     412     
+                     413     ; ========== CHARACTER MAPPINGS ==========
+025D 414243          414     KEY2_CHARS: DB 'A','B','C'
+0260 444546          415     KEY3_CHARS: DB 'D','E','F'
+0263 474849          416     KEY4_CHARS: DB 'G','H','I'
+0266 4A4B4C          417     KEY5_CHARS: DB 'J','K','L'
+0269 4D4E4F          418     KEY6_CHARS: DB 'M','N','O'
+026C 50515253        419     KEY7_CHARS: DB 'P','Q','R','S'
+0270 545556          420     KEY8_CHARS: DB 'T','U','V'
+0273 5758595A        421     KEY9_CHARS: DB 'W','X','Y','Z'
+                     422     
+                     423     END
+A51 MACRO ASSEMBLER  STUD_DETAILS_DISPLAY                                                 05/13/2025 13:25:37 PAGE     8
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E               T Y P E  V A L U E   ATTRIBUTES
+
+ALPHA_MODE . . . . .  B ADDR   0020H.0 A   
+ALPHA_MSG. . . . . .  C ADDR   022BH   A   
+B. . . . . . . . . .  D ADDR   00F0H   A   
+CHECK_COL1 . . . . .  C ADDR   0090H   A   
+CHECK_COL2 . . . . .  C ADDR   00D2H   A   
+CHECK_COL3 . . . . .  C ADDR   010FH   A   
+CHECK_KEY9 . . . . .  C ADDR   01E0H   A   
+CHECK_TIMER. . . . .  C ADDR   001AH   A   
+CLEAR_LCD. . . . . .  C ADDR   005DH   A   
+COL1 . . . . . . . .  B ADDR   00A0H.4 A   
+COL2 . . . . . . . .  B ADDR   00A0H.5 A   
+COL3 . . . . . . . .  B ADDR   00A0H.6 A   
+CURSOR_POS . . . . .  N NUMB   0033H   A   
+DEFAULT_MAX. . . . .  C ADDR   01E7H   A   
+DELAY_200MS. . . . .  C ADDR   01FFH   A   
+DELAY_200MS_LOOP . .  C ADDR   0201H   A   
+DELAY_20MS . . . . .  C ADDR   01F6H   A   
+DELAY_20MS_LOOP. . .  C ADDR   01F8H   A   
+DELAY_SHORT. . . . .  C ADDR   01F1H   A   
+EN . . . . . . . . .  B ADDR   00B0H.1 A   
+GET_ALPHA_CHAR . . .  C ADDR   018CH   A   
+GET_CHAR_FROM_TABLE.  C ADDR   01D3H   A   
+KEY2_CHARS . . . . .  C ADDR   025DH   A   
+KEY3_CHARS . . . . .  C ADDR   0260H   A   
+KEY4_CHARS . . . . .  C ADDR   0263H   A   
+KEY5_CHARS . . . . .  C ADDR   0266H   A   
+KEY6_CHARS . . . . .  C ADDR   0269H   A   
+KEY7_CHARS . . . . .  C ADDR   026CH   A   
+KEY8_CHARS . . . . .  C ADDR   0270H   A   
+KEY9_CHARS . . . . .  C ADDR   0273H   A   
+KEYPAD_SCAN. . . . .  C ADDR   0071H   A   
+KEY_PROCESS_DONE . .  C ADDR   018BH   A   
+LAST_KEY . . . . . .  N NUMB   0030H   A   
+LCD_CMD. . . . . . .  C ADDR   0038H   A   
+LCD_DATA . . . . . .  C ADDR   0045H   A   
+LCD_DISPLAY_STRING .  C ADDR   0067H   A   
+LCD_INIT . . . . . .  C ADDR   002BH   A   
+LOOP . . . . . . . .  C ADDR   0014H   A   
+MAIN . . . . . . . .  C ADDR   0000H   A   
+NEW_KEY. . . . . . .  C ADDR   0172H   A   
+NOT_KEY0_ALPHA . . .  C ADDR   0192H   A   
+NOT_KEY1_ALPHA . . .  C ADDR   0198H   A   
+NOT_KEY2_ALPHA . . .  C ADDR   01A0H   A   
+NOT_KEY3_ALPHA . . .  C ADDR   01A8H   A   
+NOT_KEY4_ALPHA . . .  C ADDR   01B0H   A   
+NOT_KEY5_ALPHA . . .  C ADDR   01B8H   A   
+NOT_KEY6_ALPHA . . .  C ADDR   01C0H   A   
+NOT_KEY7_ALPHA . . .  C ADDR   01C8H   A   
+NOT_KEY8_ALPHA . . .  C ADDR   01D0H   A   
+NO_NEWLINE . . . . .  C ADDR   005CH   A   
+NUMBER_MSG . . . . .  C ADDR   021CH   A   
+P1 . . . . . . . . .  D ADDR   0090H   A   
+P2 . . . . . . . . .  D ADDR   00A0H   A   
+P3 . . . . . . . . .  D ADDR   00B0H   A   
+PRESS_COUNT. . . . .  N NUMB   0031H   A   
+PROCESS_ALPHA_NEW. .  C ADDR   0185H   A   
+PROCESS_ALPHA_REPEAT  C ADDR   015FH   A   
+PROCESS_KEY. . . . .  C ADDR   0151H   A   
+PROMPT3. . . . . . .  C ADDR   023AH   A   
+PROMPT4. . . . . . .  C ADDR   0249H   A   
+A51 MACRO ASSEMBLER  STUD_DETAILS_DISPLAY                                                 05/13/2025 13:25:37 PAGE     9
+
+ROW1 . . . . . . . .  B ADDR   00A0H.0 A   
+ROW2 . . . . . . . .  B ADDR   00A0H.1 A   
+ROW3 . . . . . . . .  B ADDR   00A0H.2 A   
+ROW4 . . . . . . . .  B ADDR   00A0H.3 A   
+RS . . . . . . . . .  B ADDR   00B0H.0 A   
+SET_MAX_PRESSES. . .  C ADDR   01E9H   A   
+SKIP_ROW1_C1 . . . .  C ADDR   009FH   A   
+SKIP_ROW1_C2 . . . .  C ADDR   00E1H   A   
+SKIP_ROW1_C3 . . . .  C ADDR   011EH   A   
+SKIP_ROW2_C1 . . . .  C ADDR   00AEH   A   
+SKIP_ROW2_C2 . . . .  C ADDR   00F0H   A   
+SKIP_ROW2_C3 . . . .  C ADDR   012DH   A   
+SKIP_ROW3_C1 . . . .  C ADDR   00BDH   A   
+SKIP_ROW3_C2 . . . .  C ADDR   00FFH   A   
+SKIP_ROW3_C3 . . . .  C ADDR   013CH   A   
+SKIP_ROW4_C1 . . . .  C ADDR   00D1H   A   
+SKIP_ROW4_C2 . . . .  C ADDR   010EH   A   
+SKIP_ROW4_C3 . . . .  C ADDR   0150H   A   
+STRING_END . . . . .  C ADDR   0070H   A   
+TIMER. . . . . . . .  N NUMB   0032H   A   
+TIMER_NOT_EXPIRED. .  C ADDR   002AH   A   
+WELCOME_MSG. . . . .  C ADDR   0206H   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)

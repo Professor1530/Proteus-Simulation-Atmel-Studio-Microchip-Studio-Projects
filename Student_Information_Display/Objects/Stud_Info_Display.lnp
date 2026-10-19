@@ -1,0 +1,3 @@
+".\Objects\Stud_Details_Display.obj" 
+TO ".\Objects\Stud_Info_Display" 
+PRINT(".\Listings\Stud_Info_Display.m51") RAMSIZE(256) 

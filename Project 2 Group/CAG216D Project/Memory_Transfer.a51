@@ -1,0 +1,20 @@
+ORG 0000H
+MOV R0, #00H
+MOV R2, #0AH
+
+TRANSFER_LOOP:
+    MOV DPH, #080H
+    MOV DPL, R0
+    MOVX A, @DPTR
+    MOV R3, A
+
+    MOV DPH, #090H
+    MOV DPL, R0
+    MOV A, R3
+    MOVX @DPTR, A
+
+    INC R0
+    DJNZ R2, TRANSFER_LOOP
+
+SJMP $
+END
